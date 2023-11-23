@@ -1,0 +1,49 @@
+{
+    "name": "google-handler-area-react",
+    "version": "1.0.0",
+    "description": "",
+    "main": "dist/cjs/index.js",
+    "module": "dist/cjs/index.js",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 0",
+        "build": "rm -rf dist/ && prettier --write src/ && npm run build:esm && npm run build:cjs",
+        "build:esm": "tsc",
+        "build:cjs": "tsc --module CommonJS --outDir dist/cjs"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/damiaofranca/google-handler-area-react.git"
+    },
+    "publishConfig": {
+        "registry": "https://registry.npmjs.org/"
+    },
+    "keywords": [
+        "react",
+        "google-maps",
+        "handler-area",
+        "polygon",
+        "create",
+        "update"
+    ],
+    "author": "Damião França",
+    "license": "MIT",
+    "peerDependencies": {
+        "@googlemaps/js-api-loader": "1.16.2",
+        "@googlemaps/react-wrapper": "1.1.35",
+        "@types/google.maps": "3.54.9",
+        "@types/react": "18.2.38",
+        "react": "18.2.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.9.4",
+        "@googlemaps/js-api-loader": "1.16.2",
+        "@googlemaps/react-wrapper": "1.1.35",
+        "@types/google.maps": "3.54.9",
+        "@types/react": "18.2.38",
+        "react": "18.2.0",
+        "typescript": "5.3.2"
+    }
+}
