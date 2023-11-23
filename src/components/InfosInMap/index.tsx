@@ -45,13 +45,11 @@ const Map: React.FC<IMap> = ({ size, infos, radius, typeMaps, iconPath, initialZ
 
     useEffect(() => {
         if (map && infos.length) {
-            console.log('aqe', infos, iconPath);
             infos.map((info) => {
                 const infoWindow = new google.maps.InfoWindow({
                     content: injectAttributes(info, infoWindowHtml),
                     ariaLabel: ariaLabelCustom ? ariaLabelCustom : 'Open Sans'
                 });
-                console.log('iiis', map);
                 const marker = new window.google.maps.Marker({
                     map,
                     position: { lat: info.lat, lng: info.lng },
@@ -101,7 +99,7 @@ const Map: React.FC<IMap> = ({ size, infos, radius, typeMaps, iconPath, initialZ
 
 interface IInfosInMap extends IMap {
     apiKey: string;
-    libraries: Libraries;
+    libraries?: Libraries;
     failed?: FunctionComponent;
     loading?: FunctionComponent;
 }
@@ -145,5 +143,5 @@ export const InfosInMap: FC<IInfosInMap> = ({
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={libraries} key={'wrapper-create'}></Wrapper>;
+    return <Wrapper apiKey={apiKey} render={renderMap} libraries={...libraries ? libraries : []} key={'wrapper-create'}></Wrapper>;
 };

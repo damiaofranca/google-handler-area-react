@@ -11,7 +11,6 @@ interface IMap {
     apiKey: string;
     radius?: string;
     initialZoom?: number;
-    libraries: Libraries;
     existingPolygon: ICoordinates[];
     size: { width: string; height: string };
     typeMaps?: 'roadmap' | 'satellite' | 'hybrid' | 'terrain';
@@ -34,7 +33,6 @@ const Map: React.FC<IMap> = ({
     radius,
     apiKey,
     typeMaps,
-    libraries,
     initialZoom,
     existingPolygon,
     initialCoordinates,
@@ -165,7 +163,7 @@ const Map: React.FC<IMap> = ({
             });
             setMap(_map);
         }
-    }, [apiKey, existingPolygon, initialCoordinates, initialZoom, libraries, map, typeMaps]);
+    }, [apiKey, existingPolygon, initialCoordinates, initialZoom, map, typeMaps]);
 
     return (
         <div
@@ -213,6 +211,7 @@ const Map: React.FC<IMap> = ({
 };
 
 interface IUpdateArea extends IMap {
+    libraries?: Libraries;
     failed?: FunctionComponent;
     loading?: FunctionComponent;
 }
@@ -247,7 +246,6 @@ export const UpdateArea: FC<IUpdateArea> = ({
                         radius={radius}
                         onGetMap={onGetMap}
                         typeMaps={typeMaps}
-                        libraries={libraries}
                         initialZoom={initialZoom}
                         existingPolygon={existingPolygon}
                         initialCoordinates={initialCoordinates}
@@ -256,5 +254,5 @@ export const UpdateArea: FC<IUpdateArea> = ({
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...libraries, 'drawing']} key={'wrapper-create'}></Wrapper>;
+    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...(libraries ? libraries : []), 'drawing']} key={'wrapper-create'}></Wrapper>;
 };

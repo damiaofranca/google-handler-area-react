@@ -71,7 +71,7 @@ const Map: React.FC<IMap> = ({
 interface ISelectLocation extends Pick<IMap, 'typeMaps' | 'initialZoom' | 'onSetLocation' | 'iconPath' | 'size'> {
     apiKey: string;
     borderRadius?: string;
-    libraries: Libraries;
+    libraries?: Libraries;
     failed?: FunctionComponent;
     loading?: FunctionComponent;
     initialCoordinates: { lat: number; lng: number };
@@ -106,5 +106,5 @@ export const SelectLocation: FC<ISelectLocation> = ({
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={libraries} key={'wrapper-create'}></Wrapper>;
+    return <Wrapper apiKey={apiKey} render={renderMap} libraries={(libraries = { ...(libraries ? libraries : []) })} key={'wrapper-create'}></Wrapper>;
 };
