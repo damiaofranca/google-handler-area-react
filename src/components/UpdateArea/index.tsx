@@ -256,5 +256,5 @@ export const UpdateArea: FC<IUpdateArea> = ({
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={libraries} key={'wrapper-create'}></Wrapper>;
+    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...libraries, 'drawing']} key={'wrapper-create'}></Wrapper>;
 };

@@ -54,7 +54,7 @@ const Map: React.FC<IMap> = ({
 
     const loader = new Loader({
         apiKey: apiKey,
-        libraries: libraries
+        libraries: [...libraries, 'drawing']
     });
 
     const clearPolygon = () => {
@@ -197,5 +197,5 @@ export const CreateArea: FC<ICreateArea> = ({ size, radius, apiKey, typeMaps, on
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={libraries} key={'wrapper-create'}></Wrapper>;
+    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...libraries, 'drawing']} key={'wrapper-create'}></Wrapper>;
 };
