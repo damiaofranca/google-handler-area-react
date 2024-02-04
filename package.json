@@ -1,6 +1,6 @@
 {
     "name": "google-handler-area-react",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "description": "",
     "main": "dist/cjs/index.js",
     "module": "dist/cjs/index.js",
