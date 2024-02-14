@@ -143,5 +143,5 @@ export const InfosInMap: FC<IInfosInMap> = ({
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={...libraries ? libraries : []} key={'wrapper-create'}></Wrapper>;
+    return <Wrapper apiKey={apiKey} render={renderMap} libraries={(libraries = { ...(libraries ? libraries : []) })} key={'info-in-map'}></Wrapper>;
 };
