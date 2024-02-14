@@ -186,7 +186,7 @@ export const CreateArea: FC<ICreateArea> = ({ size, radius, apiKey, typeMaps, on
     const renderMap = (status: Status) => {
         switch (status) {
             case Status.LOADING:
-                return LoadingComponent ? <LoadingComponent /> : <>loading...</>;
+                return LoadingComponent ? <LoadingComponent /> : <>Loading...</>;
 
             case Status.FAILURE:
                 return FailedComponent ? <FailedComponent /> : <>failed</>;

@@ -233,7 +233,7 @@ export const UpdateArea: FC<IUpdateArea> = ({
     const renderMap = (status: Status) => {
         switch (status) {
             case Status.LOADING:
-                return LoadingComponent ? <LoadingComponent /> : <>loading...</>;
+                return LoadingComponent ? <LoadingComponent /> : <>Loading...</>;
 
             case Status.FAILURE:
                 return FailedComponent ? <FailedComponent /> : <>failed</>;
