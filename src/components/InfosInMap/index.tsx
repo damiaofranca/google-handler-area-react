@@ -122,7 +122,7 @@ export const InfosInMap: FC<IInfosInMap> = ({
     const renderMap = (status: Status) => {
         switch (status) {
             case Status.LOADING:
-                return LoadingComponent ? <LoadingComponent /> : <>Loading...</>;
+                return LoadingComponent ? <LoadingComponent /> : <>loading...</>;
 
             case Status.FAILURE:
                 return FailedComponent ? <FailedComponent /> : <>failed</>;
