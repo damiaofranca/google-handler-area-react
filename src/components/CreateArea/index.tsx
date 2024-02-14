@@ -156,7 +156,7 @@ const Map: React.FC<IMap> = ({
             <div
                 style={{
                     top: 10,
-                    right: '54px',
+                    right: '52px',
                     width: '40px',
                     height: '40px',
                     borderRadius: 2,
