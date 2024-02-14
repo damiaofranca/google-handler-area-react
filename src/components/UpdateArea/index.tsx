@@ -13,8 +13,8 @@ interface IMap {
     initialZoom?: number;
     existingPolygon: ICoordinates[];
     size: { width: string; height: string };
-    typeMaps?: 'roadmap' | 'satellite' | 'hybrid' | 'terrain';
     initialCoordinates: { lat: number; lng: number };
+    typeMaps?: 'roadmap' | 'satellite' | 'hybrid' | 'terrain';
 
     onGetMap: (value: ICoordinates[] | null) => void;
 }
