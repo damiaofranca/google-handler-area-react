@@ -124,8 +124,8 @@ const Map: React.FC<IMap> = ({
         const map = new google.maps.Map(document.getElementById('map-area-create')!, {
             tilt: 0,
             zoom: initialZoom || 13,
-            mapTypeId: typeMaps || 'satellite',
             streetViewControl: false,
+            mapTypeId: typeMaps || 'satellite',
             center: initialCoordinates || { lat: 37.775, lng: -122.434 }
         });
 
@@ -140,6 +140,7 @@ const Map: React.FC<IMap> = ({
             style={{
                 width: size.width,
                 height: size.height,
+                position: 'relative',
                 borderRadius: radius || '8px'
             }}
         >
@@ -156,7 +157,7 @@ const Map: React.FC<IMap> = ({
                 style={{
                     top: 10,
                     width: '40px',
-                    right: '60px',
+                    left: '200px',
                     height: '40px',
                     borderRadius: 2,
                     display: 'flex',
@@ -168,7 +169,7 @@ const Map: React.FC<IMap> = ({
                     borderLeft: '1px solid #f1f1f1'
                 }}
                 onClick={() => clearPolygon()}
-                title="Deletar area"
+                title="Delete area"
             >
                 <DeleteIcon />
             </div>

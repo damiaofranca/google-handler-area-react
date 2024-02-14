@@ -88,7 +88,6 @@ const Map: React.FC<IMap> = ({
     useEffect(() => {
         if (drawingManager && !initialPolygon) {
             google.maps.event.addListener(drawingManager, 'polygoncomplete', (createdPolygon: google.maps.Polygon) => {
-                // handlePolygonUpdate(createdPolygon);
                 setHaveDrawingTool(true);
                 setPolygon(createdPolygon);
                 drawingManager.setOptions({
@@ -170,6 +169,7 @@ const Map: React.FC<IMap> = ({
             style={{
                 width: size.width,
                 height: size.height,
+                position: 'relative',
                 borderRadius: radius || '8px'
             }}
         >
@@ -187,7 +187,7 @@ const Map: React.FC<IMap> = ({
                     style={{
                         top: 10,
                         width: '40px',
-                        right: '60px',
+                        left: '200px',
                         height: '40px',
                         borderRadius: 2,
                         display: 'flex',
@@ -199,7 +199,7 @@ const Map: React.FC<IMap> = ({
                         borderLeft: '1px solid #f1f1f1'
                     }}
                     onClick={() => clearPolygon()}
-                    title="Deletar area"
+                    title="Delete area"
                 >
                     <DeleteIcon />
                 </div>
