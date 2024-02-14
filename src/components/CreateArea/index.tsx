@@ -141,8 +141,7 @@ const Map: React.FC<IMap> = ({
                 width: size.width,
                 height: size.height,
                 position: 'relative',
-                borderRadius: radius || '8px',
-                backgroundColor: 'red'
+                borderRadius: radius || '8px'
             }}
         >
             <div
@@ -157,8 +156,8 @@ const Map: React.FC<IMap> = ({
             <div
                 style={{
                     top: 10,
+                    right: '54px',
                     width: '40px',
-                    left: '200px',
                     height: '40px',
                     borderRadius: 2,
                     display: 'flex',
