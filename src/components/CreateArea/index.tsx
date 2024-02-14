@@ -141,7 +141,8 @@ const Map: React.FC<IMap> = ({
                 width: size.width,
                 height: size.height,
                 position: 'relative',
-                borderRadius: radius || '8px'
+                borderRadius: radius || '8px',
+                backgroundColor: 'red'
             }}
         >
             <div
