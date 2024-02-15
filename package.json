@@ -7,11 +7,15 @@
     "main": "dist/index.umd.js",
     "module": "dist/index.mjs",
     "types": "dist/index.d.ts",
+    "type": "module",
     "files": [
         "dist"
     ],
     "scripts": {
-        "build": "vite build & tsc"
+        "tsc": "tsc",
+        "clean": "rimraf dist",
+        "build": "npm run clean && vite build && tsc",
+        "prepublishOnly": "npm run build"
     },
     "repository": {
         "type": "git",
@@ -29,20 +33,21 @@
         "update"
     ],
     "dependencies": {
-        "typescript": "^4.0.0",
         "@googlemaps/js-api-loader": "1.16.2",
-        "@googlemaps/react-wrapper": "1.1.35"
+        "@googlemaps/react-wrapper": "1.1.35",
+        "typescript": "^4.0.0"
     },
     "peerDependencies": {
         "react": "^18.0.0",
         "react-dom": "^18.2.0"
     },
     "devDependencies": {
-        "vite": "^5.1.2",
+        "@googlemaps/js-api-loader": "1.16.2",
+        "@googlemaps/react-wrapper": "1.1.35",
+        "@types/google.maps": "^3.54.9",
         "@types/node": "^20.9.4",
         "@types/react": "^18.0.0",
-        "@types/google.maps": "^3.54.9",
-        "@googlemaps/js-api-loader": "1.16.2",
-        "@googlemaps/react-wrapper": "1.1.35"
+        "rimraf": "^5.0.5",
+        "vite": "^5.1.2"
     }
 }
