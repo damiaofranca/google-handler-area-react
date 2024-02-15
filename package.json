@@ -2,7 +2,7 @@
     "name": "google-handler-area-react",
     "license": "MIT",
     "description": "Biblioteca para manipulação de áreas no Google Maps em aplicações React.",
-    "version": "1.4.6",
+    "version": "1.4.7",
     "author": "Damião França",
     "main": "dist/index.umd.js",
     "module": "dist/index.mjs",
