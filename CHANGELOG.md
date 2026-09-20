@@ -51,6 +51,11 @@ the public component API from `1.4.x` is fully preserved.
 - Exported prop types (`ICreateArea`, `IUpdateArea`, `ISelectLocation`,
   `IInfosInMap`) and shared types (`ICoordinates`, `MapSize`, `MapTypeId`,
   `ManagedMarker`).
+- Pure geometry helpers (no Maps runtime needed): `computePolygonArea`,
+  `computePolygonPerimeter`, `computePolygonCentroid`, `computeDistance`,
+  `computePolygonMetrics` (+ `PolygonMetrics`).
+- Optional `onMetrics` callback and `polygonOptions` prop on `CreateArea` /
+  `UpdateArea` (area/perimeter/centroid reported alongside `onGetMap`).
 - `role="button"` / `aria-label` on the delete control.
 
 ### Performance

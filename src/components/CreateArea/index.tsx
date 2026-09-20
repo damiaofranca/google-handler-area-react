@@ -4,6 +4,7 @@ import { Libraries } from '@googlemaps/js-api-loader';
 
 import { createPolygonEditor, type PolygonEditor } from '../../core/polygonEditor';
 import type { ICoordinates, MapSize, MapTypeId } from '../../core/types';
+import { computePolygonMetrics, type PolygonMetrics } from '../../core/geometry';
 import { DeleteIcon } from '../shared/DeleteIcon';
 import { deleteControlStyle } from '../shared/deleteControlStyle';
 
@@ -23,9 +24,11 @@ interface IMap {
     typeMaps?: MapTypeId;
     /** Styling for the drawn polygon (fill/stroke, etc.). */
     polygonOptions?: google.maps.PolygonOptions;
+    /** Called with area/perimeter/centroid on every change, or `null` when cleared. */
+    onMetrics?: (metrics: PolygonMetrics | null) => void;
 }
 
-const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, initialZoom, initialCoordinates, polygonOptions, onGetMap }) => {
+const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, initialZoom, initialCoordinates, polygonOptions, onMetrics, onGetMap }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [hasPolygon, setHasPolygon] = useState(false);
 
@@ -34,6 +37,8 @@ const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, initialZoom, initi
     onGetMapRef.current = onGetMap;
     const polygonOptionsRef = useRef(polygonOptions);
     polygonOptionsRef.current = polygonOptions;
+    const onMetricsRef = useRef(onMetrics);
+    onMetricsRef.current = onMetrics;
 
     const mapRef = useRef<google.maps.Map | null>(null);
     const editorRef = useRef<PolygonEditor | null>(null);
@@ -61,6 +66,7 @@ const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, initialZoom, initi
             polygonOptions: polygonOptionsRef.current,
             onChange: (path) => {
                 onGetMapRef.current(path);
+                onMetricsRef.current?.(path ? computePolygonMetrics(path) : null);
                 setHasPolygon(!!path && path.length > 0);
             }
         });
@@ -149,6 +155,7 @@ export const CreateArea: FC<ICreateArea> = ({
     mapId,
     typeMaps,
     onGetMap,
+    onMetrics,
     libraries,
     initialZoom,
     initialCoordinates,
@@ -170,6 +177,7 @@ export const CreateArea: FC<ICreateArea> = ({
                         radius={radius}
                         mapId={mapId}
                         onGetMap={onGetMap}
+                        onMetrics={onMetrics}
                         typeMaps={typeMaps}
                         libraries={libraries}
                         initialZoom={initialZoom}

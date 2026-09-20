@@ -65,12 +65,14 @@ Draw a single editable polygon. Reports the vertices on every change
 | `size` | `{ width: string; height: string }` | ✅ | Container dimensions. |
 | `initialCoordinates` | `{ lat: number; lng: number }` | ✅ | Map center. |
 | `onGetMap` | `(value: ICoordinates[] \| null) => void` | ✅ | Called with the polygon path (or `null`). |
-| `libraries` | `Libraries` | ✅ | Extra libraries to load (`'drawing'` is always added). |
+| `libraries` | `Libraries` | ✅ | Extra Google Maps libraries to load. |
 | `initialZoom` | `number` | – | Default `13`. |
 | `typeMaps` | `'roadmap' \| 'satellite' \| 'hybrid' \| 'terrain'` | – | Default `'satellite'`. |
 | `radius` | `string` | – | Border radius, default `'8px'`. |
 | `mapId` | `string` | – | Cloud Map ID (enables vector maps / advanced features). |
-| `version` | `string` | – | Pin a Maps API version (see [Drawing tools](#a-note-on-the-drawing-tools)). |
+| `version` | `string` | – | Pin a Maps API version. |
+| `polygonOptions` | `google.maps.PolygonOptions` | – | Fill/stroke styling for the polygon. |
+| `onMetrics` | `(m: PolygonMetrics \| null) => void` | – | Area/perimeter/centroid on each change. |
 | `loading` / `failed` | `FunctionComponent` | – | Custom loading / error UI. |
 
 ### `UpdateArea`
@@ -112,7 +114,9 @@ src/
 ├─ components/            # The 4 public React components + shared UI bits
 ├─ core/
 │  ├─ loader.ts           # Shared singleton Google Maps loader (dedup)
+│  ├─ polygonEditor.ts    # Click-to-draw editable polygon (no DrawingManager)
 │  ├─ markers.ts          # AdvancedMarkerElement ↔ legacy Marker abstraction
+│  ├─ geometry.ts         # Pure area/perimeter/centroid helpers
 │  ├─ errors.ts           # GoogleMapsError + typed error codes
 │  └─ types.ts            # ICoordinates, MapSize, MapTypeId
 └─ utils/
@@ -157,8 +161,8 @@ shared loader is the only thing they have in common.
 ### Performance
 
 - **One** script load and loader instance for the whole app.
-- Libraries imported lazily (`drawing`/`marker`) and cached by the Maps runtime.
-- No per-render object churn (map, drawing manager and markers live in refs).
+- The `marker` library is imported lazily (only when `mapId` is set) and cached.
+- No per-render object churn (map, polygon and markers live in refs).
 - `InfosInMap` fully replaces its markers on data change — no orphans accumulate.
 - ESM build + `sideEffects: false` for tree-shaking; React and the Google Maps
   packages are externalized (not bundled).
@@ -245,6 +249,35 @@ or scope the info window in your global CSS:
 
 ---
 
+## Geometry helpers
+
+Pure, dependency-free functions to measure the areas you draw — no Google Maps
+runtime or `geometry` library needed, so they work anywhere (server included)
+and are fully tree-shakable:
+
+```ts
+import { computePolygonArea, computePolygonPerimeter, computePolygonCentroid, computePolygonMetrics } from 'google-handler-area-react';
+
+const area = computePolygonArea(coords); // m²
+const perimeter = computePolygonPerimeter(coords); // m
+const centroid = computePolygonCentroid(coords); // { lat, lng } | null
+const all = computePolygonMetrics(coords); // { area, perimeter, centroid }
+```
+
+`CreateArea` and `UpdateArea` also accept an optional **`onMetrics`** callback,
+fired alongside `onGetMap` with `{ area, perimeter, centroid }` (or `null` when
+cleared):
+
+```tsx
+<CreateArea
+  /* ... */
+  onGetMap={(coords) => setCoords(coords)}
+  onMetrics={(m) => setArea(m ? m.area : 0)}
+/>
+```
+
+---
+
 ## Public API
 
 Components: `CreateArea`, `UpdateArea`, `SelectLocation`, `InfosInMap`
@@ -253,7 +286,9 @@ Components: `CreateArea`, `UpdateArea`, `SelectLocation`, `InfosInMap`
 Core: `loadGoogleMaps`, `importMapsLibrary`, `isGoogleMapsLoaded`,
 `resetGoogleMapsLoader`, `GoogleMapsError`, and types `LoadGoogleMapsOptions`,
 `GoogleMapsErrorCode`, `Library`, `ICoordinates`, `MapSize`, `MapTypeId`,
-`ManagedMarker`.
+`ManagedMarker`. Geometry: `computePolygonArea`, `computePolygonPerimeter`,
+`computePolygonCentroid`, `computeDistance`, `computePolygonMetrics`
+(+ `PolygonMetrics`).
 
 Utils: `injectAttributes` (+ `IContentInfoWindow`, `InjectAttributesOptions`).
 

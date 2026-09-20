@@ -4,3 +4,5 @@ export { loadGoogleMaps, importMapsLibrary, isGoogleMapsLoaded, resetGoogleMapsL
 export type { LoadGoogleMapsOptions, Library } from './loader';
 export type { ICoordinates, MapSize, MapTypeId } from './types';
 export type { ManagedMarker } from './markers';
+export { computePolygonArea, computePolygonPerimeter, computePolygonCentroid, computeDistance, computePolygonMetrics } from './geometry';
+export type { PolygonMetrics } from './geometry';

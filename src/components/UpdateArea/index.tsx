@@ -4,6 +4,7 @@ import { Libraries } from '@googlemaps/js-api-loader';
 
 import { createPolygonEditor, type PolygonEditor } from '../../core/polygonEditor';
 import type { ICoordinates, MapSize, MapTypeId } from '../../core/types';
+import { computePolygonMetrics, type PolygonMetrics } from '../../core/geometry';
 import { DeleteIcon } from '../shared/DeleteIcon';
 import { deleteControlStyle } from '../shared/deleteControlStyle';
 
@@ -23,9 +24,11 @@ interface IMap {
     onGetMap: (value: ICoordinates[] | null) => void;
     /** Styling for the polygon (fill/stroke, etc.). */
     polygonOptions?: google.maps.PolygonOptions;
+    /** Called with area/perimeter/centroid on every change, or `null` when cleared. */
+    onMetrics?: (metrics: PolygonMetrics | null) => void;
 }
 
-const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, initialZoom, existingPolygon, initialCoordinates, polygonOptions, onGetMap }) => {
+const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, initialZoom, existingPolygon, initialCoordinates, polygonOptions, onMetrics, onGetMap }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [hasPolygon, setHasPolygon] = useState((existingPolygon?.length ?? 0) > 0);
 
@@ -33,6 +36,8 @@ const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, initialZoom, exist
     onGetMapRef.current = onGetMap;
     const polygonOptionsRef = useRef(polygonOptions);
     polygonOptionsRef.current = polygonOptions;
+    const onMetricsRef = useRef(onMetrics);
+    onMetricsRef.current = onMetrics;
 
     // The initial polygon is applied once, at mount.
     const initialPathRef = useRef(existingPolygon);
@@ -64,6 +69,7 @@ const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, initialZoom, exist
             polygonOptions: polygonOptionsRef.current,
             onChange: (path) => {
                 onGetMapRef.current(path);
+                onMetricsRef.current?.(path ? computePolygonMetrics(path) : null);
                 setHasPolygon(!!path && path.length > 0);
             }
         });
@@ -152,6 +158,7 @@ export const UpdateArea: FC<IUpdateArea> = ({
     typeMaps,
     libraries,
     onGetMap,
+    onMetrics,
     initialZoom,
     existingPolygon,
     initialCoordinates,
@@ -173,6 +180,7 @@ export const UpdateArea: FC<IUpdateArea> = ({
                         radius={radius}
                         mapId={mapId}
                         onGetMap={onGetMap}
+                        onMetrics={onMetrics}
                         typeMaps={typeMaps}
                         initialZoom={initialZoom}
                         existingPolygon={existingPolygon}
