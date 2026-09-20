@@ -1,5 +1,13 @@
 # Migration Guide
 
+## 1.5.x → 1.6.0
+
+**No breaking changes.** 1.6.0 only adds features (geometry helpers, `onMetrics`,
+`polygonOptions`, `GoogleMapsProvider`, debug mode, `SelectLocation` `showSearch`,
+`InfosInMap` `cluster`). `apiKey` became optional on components (it can come from
+`GoogleMapsProvider`) — existing code passing `apiKey` keeps working unchanged.
+Clustering needs the optional peer `@googlemaps/markerclusterer` installed.
+
 ## 1.4.x → 1.5.0
 
 **There are no breaking changes.** `1.5.0` is a drop-in upgrade: every existing

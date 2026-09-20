@@ -9,6 +9,7 @@ import { importMapsLibrary } from '../../core/loader';
 import { createManagedMarker, type ManagedMarker } from '../../core/markers';
 import { injectAttributes, type IContentInfoWindow } from '../../utils/injectAttributes';
 import type { ICoordinates, MapSize, MapTypeId } from '../../core/types';
+import type { MarkerClusterer } from '@googlemaps/markerclusterer';
 
 interface IMap {
     radius?: string;
@@ -25,6 +26,8 @@ interface IMap {
     allowHtml?: boolean;
     ariaLabelCustom?: string;
     infos: IContentInfoWindow[];
+    /** Group markers into clusters (loads `@googlemaps/markerclusterer` on demand). */
+    cluster?: boolean;
     size: MapSize;
     initialCoordinates: ICoordinates;
     typeMaps?: MapTypeId;
@@ -36,13 +39,14 @@ interface MarkerEntry {
     infoWindow: google.maps.InfoWindow;
 }
 
-const Map: React.FC<IMap> = ({ size, infos, radius, mapId, typeMaps, iconPath, allowHtml, initialZoom, infoWindowHtml, ariaLabelCustom, initialCoordinates }) => {
+const Map: React.FC<IMap> = ({ size, infos, radius, mapId, typeMaps, iconPath, allowHtml, cluster, initialZoom, infoWindowHtml, ariaLabelCustom, initialCoordinates }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [ready, setReady] = useState(false);
 
     const mapRef = useRef<google.maps.Map | null>(null);
     const markerLibraryRef = useRef<google.maps.MarkerLibrary | null>(null);
     const entriesRef = useRef<MarkerEntry[]>([]);
+    const clustererRef = useRef<MarkerClusterer | null>(null);
 
     // Create the map once.
     useEffect(() => {
@@ -76,6 +80,11 @@ const Map: React.FC<IMap> = ({ size, infos, radius, mapId, typeMaps, iconPath, a
     }, []);
 
     const clearEntries = () => {
+        if (clustererRef.current) {
+            clustererRef.current.clearMarkers();
+            clustererRef.current.setMap(null);
+            clustererRef.current = null;
+        }
         entriesRef.current.forEach(({ marker, listener, infoWindow }) => {
             listener.remove();
             infoWindow.close();
@@ -85,33 +94,53 @@ const Map: React.FC<IMap> = ({ size, infos, radius, mapId, typeMaps, iconPath, a
     };
 
     // (Re)build markers whenever the data or map changes; always clear the old
-    // markers first so nothing is orphaned.
+    // markers first so nothing is orphaned. When `cluster` is set, the markers
+    // are handed to a MarkerClusterer (loaded on demand) instead of the map.
     useEffect(() => {
         if (!ready || !mapRef.current) return;
         const map = mapRef.current;
+        let cancelled = false;
 
         clearEntries();
 
-        infos.forEach((info) => {
-            const infoWindow = new google.maps.InfoWindow({
-                content: injectAttributes(info, infoWindowHtml, { allowHtml }),
-                ariaLabel: ariaLabelCustom ?? 'Open Sans'
+        const build = async () => {
+            const entries: MarkerEntry[] = infos.map((info) => {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: injectAttributes(info, infoWindowHtml, { allowHtml }),
+                    ariaLabel: ariaLabelCustom ?? 'Open Sans'
+                });
+                const marker = createManagedMarker({
+                    map,
+                    position: { lat: info.lat, lng: info.lng },
+                    iconPath,
+                    markerLibrary: markerLibraryRef.current,
+                    addToMap: !cluster
+                });
+                const listener = marker.addClickListener(() => infoWindow.open({ map, anchor: marker.anchor }));
+                return { marker, listener, infoWindow };
             });
+            entriesRef.current = entries;
 
-            const marker = createManagedMarker({
-                map,
-                position: { lat: info.lat, lng: info.lng },
-                iconPath,
-                markerLibrary: markerLibraryRef.current
-            });
+            if (cluster && entries.length) {
+                const { MarkerClusterer } = await import('@googlemaps/markerclusterer');
+                if (cancelled) {
+                    clearEntries();
+                    return;
+                }
+                clustererRef.current = new MarkerClusterer({
+                    map,
+                    markers: entries.map((entry) => entry.marker.anchor as google.maps.Marker)
+                });
+            }
+        };
 
-            const listener = marker.addClickListener(() => infoWindow.open({ map, anchor: marker.anchor }));
+        void build();
 
-            entriesRef.current.push({ marker, listener, infoWindow });
-        });
-
-        return () => clearEntries();
-    }, [ready, infos, iconPath, infoWindowHtml, ariaLabelCustom, allowHtml]);
+        return () => {
+            cancelled = true;
+            clearEntries();
+        };
+    }, [ready, infos, iconPath, infoWindowHtml, ariaLabelCustom, allowHtml, cluster]);
 
     return (
         <div style={{ width: size.width, height: size.height }}>
@@ -183,6 +212,7 @@ export const InfosInMap: FC<IInfosInMap> = ({
     typeMaps,
     libraries,
     allowHtml,
+    cluster,
     initialZoom,
     infoWindowHtml,
     ariaLabelCustom,
@@ -215,6 +245,7 @@ export const InfosInMap: FC<IInfosInMap> = ({
                         iconPath={iconPath}
                         typeMaps={typeMaps}
                         allowHtml={allowHtml}
+                        cluster={cluster}
                         initialZoom={initialZoom}
                         infoWindowHtml={infoWindowHtml}
                         ariaLabelCustom={ariaLabelCustom}

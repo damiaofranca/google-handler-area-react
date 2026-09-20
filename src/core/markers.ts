@@ -32,6 +32,8 @@ interface CreateMarkerParams {
      */
     markerLibrary?: google.maps.MarkerLibrary | null;
     draggable?: boolean;
+    /** Attach the marker to the map immediately. Set `false` when a clusterer manages it. */
+    addToMap?: boolean;
 }
 
 /**
@@ -41,7 +43,7 @@ interface CreateMarkerParams {
  *
  * @internal
  */
-export const createManagedMarker = ({ map, position, iconPath, markerLibrary, draggable = false }: CreateMarkerParams): ManagedMarker => {
+export const createManagedMarker = ({ map, position, iconPath, markerLibrary, draggable = false, addToMap = true }: CreateMarkerParams): ManagedMarker => {
     if (markerLibrary?.AdvancedMarkerElement) {
         const { AdvancedMarkerElement } = markerLibrary;
 
@@ -55,7 +57,7 @@ export const createManagedMarker = ({ map, position, iconPath, markerLibrary, dr
         }
 
         const marker = new AdvancedMarkerElement({
-            map,
+            ...(addToMap ? { map } : {}),
             gmpClickable: true,
             gmpDraggable: draggable,
             ...(position ? { position } : {}),
@@ -78,7 +80,7 @@ export const createManagedMarker = ({ map, position, iconPath, markerLibrary, dr
 
     // Legacy fallback.
     const marker = new google.maps.Marker({
-        map,
+        ...(addToMap ? { map } : {}),
         draggable,
         ...(position ? { position } : {}),
         ...(iconPath ? { icon: iconPath } : {})

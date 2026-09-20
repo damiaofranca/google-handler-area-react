@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 
 // Everything that must stay external so the bundle is minimal and does not
 // duplicate the consumer's copy of React or the Google Maps packages.
-const external = ['react', 'react-dom', 'react/jsx-runtime', '@googlemaps/js-api-loader', '@googlemaps/react-wrapper'];
+const external = ['react', 'react-dom', 'react/jsx-runtime', '@googlemaps/js-api-loader', '@googlemaps/react-wrapper', '@googlemaps/markerclusterer'];
 
 export default defineConfig({
     build: {

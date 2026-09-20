@@ -3,6 +3,36 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [1.6.0] - 2026-09-20
+
+New features on top of the 1.5.0 modernization. **No breaking changes.**
+
+### Added
+
+- **Geometry helpers** (pure, no Maps runtime): `computePolygonArea` (m²),
+  `computePolygonPerimeter` (m), `computePolygonCentroid`, `computeDistance`,
+  `computePolygonMetrics` (+ `PolygonMetrics`).
+- **`onMetrics`** callback and **`polygonOptions`** prop on `CreateArea` /
+  `UpdateArea` (area/perimeter/centroid reported alongside `onGetMap`).
+- **`GoogleMapsProvider`** + `useGoogleMapsConfig` to share `apiKey`/`version`/
+  `libraries`/`mapId`/`language`/`region`/`debug` across components. Component
+  props win; `libraries` merge. `apiKey` is now optional on components when a
+  provider supplies it (a non-breaking widening).
+- **Debug/observability**: `setDebug`, `isDebugEnabled`, and a `debug`
+  prop/config that logs loader and lifecycle events (no-op when disabled).
+- **`SelectLocation` `showSearch`** (+ `searchPlaceholder`): Places address
+  search using the modern `PlaceAutocompleteElement` (Places API New) with a
+  legacy `Autocomplete` fallback; recenters the map/marker on the selection.
+- **`InfosInMap` `cluster`**: marker clustering via `@googlemaps/markerclusterer`
+  (an **optional** peer dependency, imported on demand only when `cluster` is set).
+- Wrapper `libraries` are de-duplicated before loading (provider + props +
+  auto-added `marker`/`places`).
+
+### Changed
+
+- `@googlemaps/markerclusterer` added as an optional peer dependency (only needed
+  when using `cluster`) and externalized from the bundle.
+
 ## [1.5.0] - 2026-09-20
 
 A stability, performance and modernization release. **No breaking changes** —
@@ -51,21 +81,6 @@ the public component API from `1.4.x` is fully preserved.
 - Exported prop types (`ICreateArea`, `IUpdateArea`, `ISelectLocation`,
   `IInfosInMap`) and shared types (`ICoordinates`, `MapSize`, `MapTypeId`,
   `ManagedMarker`).
-- Pure geometry helpers (no Maps runtime needed): `computePolygonArea`,
-  `computePolygonPerimeter`, `computePolygonCentroid`, `computeDistance`,
-  `computePolygonMetrics` (+ `PolygonMetrics`).
-- Optional `onMetrics` callback and `polygonOptions` prop on `CreateArea` /
-  `UpdateArea` (area/perimeter/centroid reported alongside `onGetMap`).
-- `GoogleMapsProvider` + `useGoogleMapsConfig` to share `apiKey`/`version`/
-  `libraries`/`mapId`/`language`/`region`/`debug` across components (`apiKey` is
-  now optional on components when a provider supplies it).
-- Debug/observability: `setDebug`, `isDebugEnabled`, and a `debug` prop/config
-  that logs loader and lifecycle events (no-op when disabled).
-- `SelectLocation` `showSearch` (+ `searchPlaceholder`): Places address search
-  using the modern `PlaceAutocompleteElement` (Places API New) with a legacy
-  `Autocomplete` fallback; recenters the map and marker on the selection.
-- Library requests are now de-duplicated before loading (provider + props +
-  auto-added `marker`/`places`).
 - `role="button"` / `aria-label` on the delete control.
 
 ### Performance

@@ -108,6 +108,13 @@ are filled from that entry.
 > **Security:** injected values are HTML-escaped by default. Pass `allowHtml`
 > only if the data is fully trusted.
 
+Pass `cluster` to group markers with `@googlemaps/markerclusterer` (an optional
+peer dependency, loaded on demand only when `cluster` is set):
+
+```tsx
+<InfosInMap cluster infos={manyPoints} infoWindowHtml={'<p>$>name<$</p>'} /* ... */ />
+```
+
 ---
 
 ## Architecture

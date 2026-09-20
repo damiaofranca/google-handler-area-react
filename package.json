@@ -2,7 +2,7 @@
     "name": "google-handler-area-react",
     "license": "MIT",
     "description": "Biblioteca para manipulação de áreas no Google Maps em aplicações React.",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "author": "Damião França",
     "main": "dist/index.umd.js",
     "module": "dist/index.mjs",
@@ -46,9 +46,11 @@
     },
     "peerDependencies": {
         "react": "^18.0.0 || ^19.0.0",
-        "react-dom": "^18.0.0 || ^19.0.0"
+        "react-dom": "^18.0.0 || ^19.0.0",
+        "@googlemaps/markerclusterer": "^2.5.0"
     },
     "devDependencies": {
+        "@googlemaps/markerclusterer": "^2.6.2",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/react": "^16.3.3",
         "@testing-library/user-event": "^14.6.7",
@@ -78,6 +80,9 @@
     },
     "peerDependenciesMeta": {
         "react-dom": {
+            "optional": true
+        },
+        "@googlemaps/markerclusterer": {
             "optional": true
         }
     }
