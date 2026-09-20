@@ -56,6 +56,11 @@ the public component API from `1.4.x` is fully preserved.
   `computePolygonMetrics` (+ `PolygonMetrics`).
 - Optional `onMetrics` callback and `polygonOptions` prop on `CreateArea` /
   `UpdateArea` (area/perimeter/centroid reported alongside `onGetMap`).
+- `GoogleMapsProvider` + `useGoogleMapsConfig` to share `apiKey`/`version`/
+  `libraries`/`mapId`/`language`/`region`/`debug` across components (`apiKey` is
+  now optional on components when a provider supplies it).
+- Debug/observability: `setDebug`, `isDebugEnabled`, and a `debug` prop/config
+  that logs loader and lifecycle events (no-op when disabled).
 - `role="button"` / `aria-label` on the delete control.
 
 ### Performance

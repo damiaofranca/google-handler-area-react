@@ -1,5 +1,6 @@
 import { Loader, type Library, type LoaderOptions } from '@googlemaps/js-api-loader';
 import { GoogleMapsError } from './errors';
+import { debugLog } from './debug';
 
 /**
  * Options accepted by {@link loadGoogleMaps}.
@@ -93,21 +94,29 @@ export const loadGoogleMaps = (options: LoadGoogleMapsOptions): Promise<typeof g
     const identity = identityOf(options);
 
     if (loadPromise) {
+        if (activeIdentity === identity) {
+            debugLog('loader', 'reusing in-flight/resolved Google Maps load');
+            return loadPromise;
+        }
         if (activeIdentity !== identity) {
             throw new GoogleMapsError(
                 'Google Maps was already loaded with a different configuration. ' + 'The API is a single global resource and cannot be reloaded with conflicting ' + '`apiKey`/`version`/`language`/`region` options.',
                 'INCOMPATIBLE_OPTIONS'
             );
         }
-        return loadPromise;
     }
 
+    debugLog('loader', 'loading Google Maps', { libraries: options.libraries, version: options.version });
     loaderInstance = new Loader(options);
     activeIdentity = identity;
     loadPromise = loaderInstance
         .load()
-        .then((google) => google)
+        .then((google) => {
+            debugLog('loader', 'Google Maps loaded');
+            return google;
+        })
         .catch((error) => {
+            debugLog('loader', 'Google Maps load failed', error);
             // Reset so consumers can retry after a transient failure.
             loadPromise = null;
             activeIdentity = null;
@@ -145,6 +154,7 @@ export const importMapsLibrary = async <T = unknown>(name: Library): Promise<T> 
     }
 
     try {
+        debugLog('loader', `importing library: ${name}`);
         if (loaderInstance) {
             return (await loaderInstance.importLibrary(name)) as T;
         }

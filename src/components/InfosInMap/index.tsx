@@ -2,6 +2,9 @@ import React, { FC, FunctionComponent, useEffect, useRef, useState } from 'react
 import { Status, Wrapper } from '@googlemaps/react-wrapper';
 import { Libraries } from '@googlemaps/js-api-loader';
 
+import { useResolvedGoogleMapsConfig } from '../../core/context';
+import { setDebug } from '../../core/debug';
+
 import { importMapsLibrary } from '../../core/loader';
 import { createManagedMarker, type ManagedMarker } from '../../core/markers';
 import { injectAttributes, type IContentInfoWindow } from '../../utils/injectAttributes';
@@ -130,7 +133,9 @@ const Map: React.FC<IMap> = ({ size, infos, radius, mapId, typeMaps, iconPath, a
  * @public
  */
 export interface IInfosInMap extends IMap {
-    apiKey: string;
+    apiKey?: string;
+    /** Enable library debug logging for this component. */
+    debug?: boolean;
     /** Pin a specific Google Maps API version (e.g. `"3.58"` or `"quarterly"`). Defaults to the weekly channel. */
     version?: string;
     libraries?: Libraries;
@@ -171,6 +176,7 @@ export const InfosInMap: FC<IInfosInMap> = ({
     infos,
     radius,
     apiKey,
+    debug,
     version,
     mapId,
     iconPath,
@@ -184,6 +190,15 @@ export const InfosInMap: FC<IInfosInMap> = ({
     failed: FailedComponent,
     loading: LoadingComponent
 }) => {
+    const resolved = useResolvedGoogleMapsConfig({ apiKey, version, mapId, libraries, debug });
+    useEffect(() => {
+        if (resolved.debug) setDebug(true);
+    }, [resolved.debug]);
+
+    if (!resolved.apiKey) {
+        return FailedComponent ? <FailedComponent /> : <>failed</>;
+    }
+
     const renderMap = (status: Status) => {
         switch (status) {
             case Status.LOADING:
@@ -196,7 +211,7 @@ export const InfosInMap: FC<IInfosInMap> = ({
                         size={size}
                         infos={infos}
                         radius={radius}
-                        mapId={mapId}
+                        mapId={resolved.mapId}
                         iconPath={iconPath}
                         typeMaps={typeMaps}
                         allowHtml={allowHtml}
@@ -209,5 +224,5 @@ export const InfosInMap: FC<IInfosInMap> = ({
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...(libraries ?? []), ...(mapId ? ['marker' as const] : [])]} {...(version ? { version } : {})} />;
+    return <Wrapper apiKey={resolved.apiKey!} render={renderMap} libraries={[...resolved.libraries, ...(resolved.mapId ? ['marker' as const] : [])]} {...(resolved.version ? { version: resolved.version } : {})}{...(resolved.language ? { language: resolved.language } : {})}{...(resolved.region ? { region: resolved.region } : {})} />;
 };

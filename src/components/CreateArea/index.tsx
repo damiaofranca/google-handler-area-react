@@ -2,6 +2,9 @@ import React, { FC, FunctionComponent, useEffect, useRef, useState } from 'react
 import { Status, Wrapper } from '@googlemaps/react-wrapper';
 import { Libraries } from '@googlemaps/js-api-loader';
 
+import { useResolvedGoogleMapsConfig } from '../../core/context';
+import { setDebug } from '../../core/debug';
+
 import { createPolygonEditor, type PolygonEditor } from '../../core/polygonEditor';
 import type { ICoordinates, MapSize, MapTypeId } from '../../core/types';
 import { computePolygonMetrics, type PolygonMetrics } from '../../core/geometry';
@@ -11,7 +14,9 @@ import { deleteControlStyle } from '../shared/deleteControlStyle';
 const DEFAULT_CENTER: ICoordinates = { lat: 37.775, lng: -122.434 };
 
 interface IMap {
-    apiKey: string;
+    apiKey?: string;
+    /** Enable library debug logging for this component. */
+    debug?: boolean;
     /** Pin a specific Google Maps API version (e.g. `"quarterly"`). Defaults to the weekly channel. */
     version?: string;
     radius?: string;
@@ -151,6 +156,7 @@ export const CreateArea: FC<ICreateArea> = ({
     size,
     radius,
     apiKey,
+    debug,
     version,
     mapId,
     typeMaps,
@@ -163,6 +169,15 @@ export const CreateArea: FC<ICreateArea> = ({
     failed: FailedComponent,
     loading: LoadingComponent
 }) => {
+    const resolved = useResolvedGoogleMapsConfig({ apiKey, version, mapId, libraries, debug });
+    useEffect(() => {
+        if (resolved.debug) setDebug(true);
+    }, [resolved.debug]);
+
+    if (!resolved.apiKey) {
+        return FailedComponent ? <FailedComponent /> : <>failed</>;
+    }
+
     const renderMap = (status: Status) => {
         switch (status) {
             case Status.LOADING:
@@ -175,7 +190,7 @@ export const CreateArea: FC<ICreateArea> = ({
                         size={size}
                         apiKey={apiKey}
                         radius={radius}
-                        mapId={mapId}
+                        mapId={resolved.mapId}
                         onGetMap={onGetMap}
                         onMetrics={onMetrics}
                         typeMaps={typeMaps}
@@ -188,5 +203,5 @@ export const CreateArea: FC<ICreateArea> = ({
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...(libraries ?? [])]} {...(version ? { version } : {})} />;
+    return <Wrapper apiKey={resolved.apiKey!} render={renderMap} libraries={[...resolved.libraries]} {...(resolved.version ? { version: resolved.version } : {})}{...(resolved.language ? { language: resolved.language } : {})}{...(resolved.region ? { region: resolved.region } : {})} />;
 };

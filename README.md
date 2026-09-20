@@ -202,6 +202,36 @@ The components require a browser (`window`). Render them only on the client
 
 ## Advanced usage
 
+### Shared configuration (`GoogleMapsProvider`)
+
+Wrap your tree once to share `apiKey`, `version`, `libraries`, `mapId`,
+`language`/`region` and `debug` — components then omit those props (their own
+props still win, and `libraries` merge):
+
+```tsx
+import { GoogleMapsProvider, CreateArea, SelectLocation } from 'google-handler-area-react';
+
+<GoogleMapsProvider config={{ apiKey: KEY, language: 'pt-BR' }}>
+  <CreateArea size={...} initialCoordinates={...} libraries={[]} onGetMap={...} />
+  <SelectLocation size={...} initialCoordinates={...} onSetLocation={...} />
+</GoogleMapsProvider>
+```
+
+`useGoogleMapsConfig()` exposes the current config if you need it.
+
+### Debugging
+
+Turn on namespaced `console.debug` logging (loader, lifecycle) — globally or per
+component. It is a no-op when off, so it is safe in production:
+
+```tsx
+import { setDebug } from 'google-handler-area-react';
+setDebug(true);                          // global
+<CreateArea debug /* ... */ />           // per component
+<GoogleMapsProvider config={{ debug: true }}>…</GoogleMapsProvider>  // app-wide
+```
+
+
 ### Modern markers (`AdvancedMarkerElement`)
 
 `SelectLocation` and `InfosInMap` use the deprecated `google.maps.Marker` by

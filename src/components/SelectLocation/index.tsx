@@ -2,6 +2,9 @@ import React, { FC, FunctionComponent, useEffect, useRef } from 'react';
 import { Status, Wrapper } from '@googlemaps/react-wrapper';
 import { Libraries } from '@googlemaps/js-api-loader';
 
+import { useResolvedGoogleMapsConfig } from '../../core/context';
+import { setDebug } from '../../core/debug';
+
 import { importMapsLibrary } from '../../core/loader';
 import { createManagedMarker, type ManagedMarker } from '../../core/markers';
 import type { ICoordinates, MapSize, MapTypeId } from '../../core/types';
@@ -94,7 +97,9 @@ const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, iconPath, initialZ
  * @public
  */
 export interface ISelectLocation extends Pick<IMap, 'typeMaps' | 'initialZoom' | 'onSetLocation' | 'iconPath' | 'size' | 'mapId'> {
-    apiKey: string;
+    apiKey?: string;
+    /** Enable library debug logging for this component. */
+    debug?: boolean;
     /** Pin a specific Google Maps API version (e.g. `"3.58"` or `"quarterly"`). Defaults to the weekly channel. */
     version?: string;
     borderRadius?: string;
@@ -129,7 +134,16 @@ export interface ISelectLocation extends Pick<IMap, 'typeMaps' | 'initialZoom' |
  *
  * @public
  */
-export const SelectLocation: FC<ISelectLocation> = ({ size, apiKey, version, mapId, iconPath, typeMaps, libraries, initialZoom, borderRadius, initialCoordinates, failed: FailedComponent, loading: LoadingComponent, onSetLocation }) => {
+export const SelectLocation: FC<ISelectLocation> = ({ size, apiKey, debug, version, mapId, iconPath, typeMaps, libraries, initialZoom, borderRadius, initialCoordinates, failed: FailedComponent, loading: LoadingComponent, onSetLocation }) => {
+    const resolved = useResolvedGoogleMapsConfig({ apiKey, version, mapId, libraries, debug });
+    useEffect(() => {
+        if (resolved.debug) setDebug(true);
+    }, [resolved.debug]);
+
+    if (!resolved.apiKey) {
+        return FailedComponent ? <FailedComponent /> : <>failed</>;
+    }
+
     const renderMap = (status: Status) => {
         switch (status) {
             case Status.LOADING:
@@ -137,9 +151,9 @@ export const SelectLocation: FC<ISelectLocation> = ({ size, apiKey, version, map
             case Status.FAILURE:
                 return FailedComponent ? <FailedComponent /> : <>failed</>;
             case Status.SUCCESS:
-                return <Map size={size} mapId={mapId} iconPath={iconPath} typeMaps={typeMaps} radius={borderRadius} initialZoom={initialZoom} onSetLocation={onSetLocation} initialCoordinates={initialCoordinates} />;
+                return <Map size={size} mapId={resolved.mapId} iconPath={iconPath} typeMaps={typeMaps} radius={borderRadius} initialZoom={initialZoom} onSetLocation={onSetLocation} initialCoordinates={initialCoordinates} />;
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...(libraries ?? []), ...(mapId ? ['marker' as const] : [])]} {...(version ? { version } : {})} />;
+    return <Wrapper apiKey={resolved.apiKey!} render={renderMap} libraries={[...resolved.libraries, ...(resolved.mapId ? ['marker' as const] : [])]} {...(resolved.version ? { version: resolved.version } : {})}{...(resolved.language ? { language: resolved.language } : {})}{...(resolved.region ? { region: resolved.region } : {})} />;
 };
