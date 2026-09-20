@@ -1,168 +1,83 @@
-import React, { FC, useEffect, useState, FunctionComponent, useCallback } from 'react';
+import React, { FC, FunctionComponent, useEffect, useRef, useState } from 'react';
 import { Status, Wrapper } from '@googlemaps/react-wrapper';
 import { Libraries } from '@googlemaps/js-api-loader';
 
-interface ICoordinates {
-    lat: number;
-    lng: number;
-}
+import { createPolygonEditor, type PolygonEditor } from '../../core/polygonEditor';
+import type { ICoordinates, MapSize, MapTypeId } from '../../core/types';
+import { DeleteIcon } from '../shared/DeleteIcon';
+import { deleteControlStyle } from '../shared/deleteControlStyle';
+
+const DEFAULT_CENTER: ICoordinates = { lat: 37.775, lng: -122.434 };
 
 interface IMap {
     apiKey: string;
+    /** Pin a specific Google Maps API version (e.g. `"quarterly"`). Defaults to the weekly channel. */
+    version?: string;
     radius?: string;
+    mapId?: string;
     initialZoom?: number;
     existingPolygon: ICoordinates[];
-    size: { width: string; height: string };
-    initialCoordinates: { lat: number; lng: number };
-    typeMaps?: 'roadmap' | 'satellite' | 'hybrid' | 'terrain';
-
+    size: MapSize;
+    initialCoordinates: ICoordinates;
+    typeMaps?: MapTypeId;
     onGetMap: (value: ICoordinates[] | null) => void;
+    /** Styling for the polygon (fill/stroke, etc.). */
+    polygonOptions?: google.maps.PolygonOptions;
 }
 
-const DeleteIcon = () => (
-    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path
-            d="M9 3V4H4V6H5V19C5 19.5304 5.21071 20.0391 5.58579 20.4142C5.96086 20.7893 6.46957 21 7 21H17C17.5304 21 18.0391 20.7893 18.4142 20.4142C18.7893 20.0391 19 19.5304 19 19V6H20V4H15V3H9ZM7 6H17V19H7V6ZM9 8V17H11V8H9ZM13 8V17H15V8H13Z"
-            fill="#666666"
-        />
-    </svg>
-);
+const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, initialZoom, existingPolygon, initialCoordinates, polygonOptions, onGetMap }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [hasPolygon, setHasPolygon] = useState((existingPolygon?.length ?? 0) > 0);
 
-const Map: React.FC<IMap> = ({
-    size,
-    radius,
-    apiKey,
-    typeMaps,
-    initialZoom,
-    existingPolygon,
-    initialCoordinates,
+    const onGetMapRef = useRef(onGetMap);
+    onGetMapRef.current = onGetMap;
+    const polygonOptionsRef = useRef(polygonOptions);
+    polygonOptionsRef.current = polygonOptions;
 
-    onGetMap
-}) => {
-    const [haveDrawingTool, setHaveDrawingTool] = useState<boolean>(true);
-    const [polygon, setPolygon] = useState<google.maps.Polygon | null>(null);
-    const [initialPolygon, setInitialPolygon] = useState<google.maps.Polygon | null>(null);
-    const [drawingManager, setDrawingManager] = useState<google.maps.drawing.DrawingManager | null>(null);
-    const [map, setMap] = useState<google.maps.Map | null>(null);
+    // The initial polygon is applied once, at mount.
+    const initialPathRef = useRef(existingPolygon);
+
+    const mapRef = useRef<google.maps.Map | null>(null);
+    const editorRef = useRef<PolygonEditor | null>(null);
 
     const clearPolygon = () => {
-        if (initialPolygon && drawingManager) {
-            initialPolygon.setMap(null);
-            drawingManager.setMap(null);
-            setInitialPolygon(null);
-            onGetMap(null);
-        } else if (polygon && drawingManager) {
-            polygon.setMap(null);
-            drawingManager.setMap(null);
-            setPolygon(null);
-            onGetMap(null);
-        }
-        const newDrawingManager = new google.maps.drawing.DrawingManager({
-            drawingControl: true,
-            drawingControlOptions: {
-                position: google.maps.ControlPosition.TOP_CENTER,
-                drawingModes: [google.maps.drawing.OverlayType.POLYGON]
-            },
-            polygonOptions: {
-                editable: true
-            }
-        });
-        setHaveDrawingTool(false);
-        newDrawingManager.setMap(map);
-        setDrawingManager(newDrawingManager);
+        editorRef.current?.clear();
+        setHasPolygon(false);
     };
 
-    const handlePolygonUpdate = useCallback(
-        (polygonChanges: google.maps.Polygon) => {
-            setPolygon(polygonChanges);
-            onGetMap(
-                polygonChanges
-                    .getPath()
-                    .getArray()
-                    .map((val) => ({ lat: val.lat(), lng: val.lng() }))
-            );
-        },
-        [onGetMap]
-    );
-
     useEffect(() => {
-        if (drawingManager && !initialPolygon) {
-            google.maps.event.addListener(drawingManager, 'polygoncomplete', (createdPolygon: google.maps.Polygon) => {
-                setHaveDrawingTool(true);
-                setPolygon(createdPolygon);
-                drawingManager.setOptions({
-                    drawingMode: null,
-                    drawingControl: false,
-                    drawingControlOptions: {
-                        position: google.maps.ControlPosition.TOP_CENTER,
-                        drawingModes: []
-                    }
-                });
-                createdPolygon.setEditable(true);
-                onGetMap(
-                    createdPolygon
-                        .getPath()
-                        .getArray()
-                        .map((val) => ({ lat: val.lat(), lng: val.lng() }))
-                );
-                google.maps.event.addListener(createdPolygon.getPath(), 'set_at', () => {
-                    handlePolygonUpdate(createdPolygon);
-                });
-                google.maps.event.addListener(createdPolygon.getPath(), 'insert_at', () => {
-                    handlePolygonUpdate(createdPolygon);
-                });
-            });
-        }
-    }, [drawingManager, handlePolygonUpdate, initialPolygon, onGetMap]);
+        if (!containerRef.current) return;
 
-    useEffect(() => {
-        if (map && !drawingManager) {
-            setDrawingManager(
-                new google.maps.drawing.DrawingManager({
-                    map,
-                    drawingControl: true,
-                    drawingControlOptions: {
-                        position: google.maps.ControlPosition.TOP_CENTER,
-                        drawingModes: []
-                    },
-                    polygonOptions: {
-                        editable: true,
-                        paths: [existingPolygon]
-                    }
-                })
-            );
+        const map = new google.maps.Map(containerRef.current, {
+            tilt: 0,
+            zoom: initialZoom ?? 13,
+            streetViewControl: false,
+            mapTypeId: typeMaps ?? 'satellite',
+            center: initialCoordinates ?? DEFAULT_CENTER,
+            ...(mapId ? { mapId } : {})
+        });
+        mapRef.current = map;
 
-            const _poligon = new google.maps.Polygon({
-                map,
-                editable: true,
-                paths: existingPolygon
-            });
-
-            if (_poligon && !initialPolygon) {
-                google.maps.event.addListener(_poligon.getPath(), 'set_at', () => {
-                    handlePolygonUpdate(_poligon);
-                });
-
-                google.maps.event.addListener(_poligon.getPath(), 'insert_at', () => {
-                    handlePolygonUpdate(_poligon);
-                });
-                setInitialPolygon(_poligon);
+        editorRef.current = createPolygonEditor({
+            map,
+            initialPath: initialPathRef.current,
+            polygonOptions: polygonOptionsRef.current,
+            onChange: (path) => {
+                onGetMapRef.current(path);
+                setHasPolygon(!!path && path.length > 0);
             }
-        }
-    }, [drawingManager, existingPolygon, handlePolygonUpdate, initialPolygon, map]);
+        });
 
-    useEffect(() => {
-        if (!map) {
-            const _map = new google.maps.Map(document.getElementById('map-area-update')!, {
-                tilt: 0,
-                zoom: initialZoom || 13,
-                mapTypeId: typeMaps || 'satellite',
-                streetViewControl: false,
-                center: initialCoordinates || { lat: 37.775, lng: -122.434 }
-            });
-            setMap(_map);
-        }
-    }, [apiKey, existingPolygon, initialCoordinates, initialZoom, map, typeMaps]);
+        return () => {
+            editorRef.current?.destroy();
+            editorRef.current = null;
+            if (mapRef.current) {
+                google.maps.event.clearInstanceListeners(mapRef.current);
+                mapRef.current = null;
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <div
@@ -174,85 +89,99 @@ const Map: React.FC<IMap> = ({
             }}
         >
             <div
-                id="map-area-update"
-                key={'map-area-update'}
+                ref={containerRef}
                 style={{
                     width: size.width,
                     height: size.height,
                     borderRadius: radius || '8px'
                 }}
-            ></div>
-            {haveDrawingTool ? (
-                <div
-                    style={{
-                        top: 10,
-                        width: '40px',
-                        right: '52px',
-                        height: '40px',
-                        borderRadius: 2,
-                        display: 'flex',
-                        cursor: 'pointer',
-                        alignItems: 'center',
-                        position: 'absolute',
-                        justifyContent: 'center',
-                        backgroundColor: '#fff',
-                        borderLeft: '1px solid #f1f1f1'
-                    }}
-                    onClick={() => clearPolygon()}
-                    title="Delete area"
-                >
+            />
+            {hasPolygon && (
+                <div style={deleteControlStyle} onClick={clearPolygon} title="Delete area" role="button" aria-label="Delete area">
                     <DeleteIcon />
                 </div>
-            ) : (
-                <></>
             )}
         </div>
     );
 };
 
-interface IUpdateArea extends IMap {
+/**
+ * Props for {@link UpdateArea}.
+ *
+ * @public
+ */
+export interface IUpdateArea extends IMap {
     libraries?: Libraries;
-    failed?: FunctionComponent;
+    /** Rendered while the Google Maps API is loading. Defaults to `"loading..."`. */
     loading?: FunctionComponent;
+    /** Rendered if the Google Maps API fails to load. Defaults to `"failed"`. */
+    failed?: FunctionComponent;
 }
 
+/**
+ * Renders a Google Map showing an **existing** polygon (`existingPolygon`) as an
+ * editable area. The user can drag its vertices, click the map to append new
+ * ones, or delete it and draw a fresh one. Every change is reported through
+ * {@link IUpdateArea.onGetMap} as an array of `{ lat, lng }`, or `null` when the
+ * area is cleared. `existingPolygon` is applied once, on mount.
+ *
+ * @remarks
+ * As of Maps JS API v3.65 Google removed the `drawing` library
+ * (`DrawingManager`); this component uses a click-to-draw editable polygon
+ * instead. Requires a browser environment; it does not run during SSR.
+ *
+ * @example
+ * ```tsx
+ * <UpdateArea
+ *   apiKey={process.env.MAPS_KEY!}
+ *   size={{ width: '100%', height: '480px' }}
+ *   initialCoordinates={{ lat: -23.55, lng: -46.63 }}
+ *   existingPolygon={[{ lat: -23.55, lng: -46.63 }, { lat: -23.56, lng: -46.62 }, { lat: -23.54, lng: -46.61 }]}
+ *   onGetMap={(coords) => console.log(coords)}
+ * />
+ * ```
+ *
+ * @public
+ */
 export const UpdateArea: FC<IUpdateArea> = ({
     size,
     radius,
     apiKey,
+    version,
+    mapId,
     typeMaps,
     libraries,
+    onGetMap,
     initialZoom,
     existingPolygon,
     initialCoordinates,
+    polygonOptions,
     failed: FailedComponent,
-    loading: LoadingComponent,
-
-    onGetMap
+    loading: LoadingComponent
 }) => {
     const renderMap = (status: Status) => {
         switch (status) {
             case Status.LOADING:
                 return LoadingComponent ? <LoadingComponent /> : <>loading...</>;
-
             case Status.FAILURE:
                 return FailedComponent ? <FailedComponent /> : <>failed</>;
-
             case Status.SUCCESS:
                 return (
                     <Map
                         size={size}
                         apiKey={apiKey}
                         radius={radius}
+                        mapId={mapId}
                         onGetMap={onGetMap}
                         typeMaps={typeMaps}
                         initialZoom={initialZoom}
                         existingPolygon={existingPolygon}
                         initialCoordinates={initialCoordinates}
+                        polygonOptions={polygonOptions}
                     />
                 );
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...(libraries ? libraries : []), 'drawing']} key={'wrapper-create'}></Wrapper>;
+    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...(libraries ?? [])]} {...(version ? { version } : {})} />;
 };

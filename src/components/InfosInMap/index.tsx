@@ -1,117 +1,182 @@
-import React, { FC, FunctionComponent, useEffect } from 'react';
+import React, { FC, FunctionComponent, useEffect, useRef, useState } from 'react';
 import { Status, Wrapper } from '@googlemaps/react-wrapper';
 import { Libraries } from '@googlemaps/js-api-loader';
 
-import injectAttributes from '../../utils/injectAttributes';
-
-interface IContentInfoWindow {
-    lat: number;
-    lng: number;
-    [key: string]: any;
-}
+import { importMapsLibrary } from '../../core/loader';
+import { createManagedMarker, type ManagedMarker } from '../../core/markers';
+import { injectAttributes, type IContentInfoWindow } from '../../utils/injectAttributes';
+import type { ICoordinates, MapSize, MapTypeId } from '../../core/types';
 
 interface IMap {
     radius?: string;
+    mapId?: string;
     iconPath?: string;
     initialZoom?: number;
     /**
-     * Replaces placeholders in the HTML code with corresponding values provided in `info`.
-     *
-     * The format `$>key<$` will be swapped for each iteration of `infos[index][key]`.
-     *
-     * It is mandatory to use ` `` ` instead of `""` in the passed string format for the layout to work accordingly.
-     *
-     * @returns {string} - The modified HTML code with injected values.
-     *
-     * You can create styles for elements by passing classes (use class instead className) and styling in a global style file.
-     *
-     * @example
-     * // The users provided are: [{ name: 'John', age: 25, city: 'New York' },...];
-     * // The htmlCode property is = '<p>$>name<$ is $>age<$ years old and lives in $>city<$.</p>';
-     *
-     * // Result: '<p>John is 25 years old and lives in New York.</p>'
+     * HTML template for each marker's info window. Use `$>key<$` placeholders,
+     * which are replaced with the matching value from each `infos` entry.
+     * Injected values are HTML-escaped unless {@link IMap.allowHtml} is `true`.
      */
-
     infoWindowHtml: string;
+    /** Allow raw (unescaped) HTML in injected values. Only for trusted data. */
+    allowHtml?: boolean;
     ariaLabelCustom?: string;
     infos: IContentInfoWindow[];
-    size: { width: string; height: string };
-    initialCoordinates: { lat: number; lng: number };
-    typeMaps?: 'roadmap' | 'satellite' | 'hybrid' | 'terrain';
+    size: MapSize;
+    initialCoordinates: ICoordinates;
+    typeMaps?: MapTypeId;
 }
 
-const Map: React.FC<IMap> = ({ size, infos, radius, typeMaps, iconPath, initialZoom, infoWindowHtml, ariaLabelCustom, initialCoordinates }) => {
-    const [map, setMap] = React.useState<google.maps.Map | null>(null);
+interface MarkerEntry {
+    marker: ManagedMarker;
+    listener: google.maps.MapsEventListener;
+    infoWindow: google.maps.InfoWindow;
+}
 
+const Map: React.FC<IMap> = ({ size, infos, radius, mapId, typeMaps, iconPath, allowHtml, initialZoom, infoWindowHtml, ariaLabelCustom, initialCoordinates }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [ready, setReady] = useState(false);
+
+    const mapRef = useRef<google.maps.Map | null>(null);
+    const markerLibraryRef = useRef<google.maps.MarkerLibrary | null>(null);
+    const entriesRef = useRef<MarkerEntry[]>([]);
+
+    // Create the map once.
     useEffect(() => {
-        if (map && infos.length) {
-            infos.map((info) => {
-                const infoWindow = new google.maps.InfoWindow({
-                    content: injectAttributes(info, infoWindowHtml),
-                    ariaLabel: ariaLabelCustom ? ariaLabelCustom : 'Open Sans'
-                });
-                const marker = new window.google.maps.Marker({
-                    map,
-                    position: { lat: info.lat, lng: info.lng },
-                    ...(iconPath ? { icon: iconPath } : {})
-                });
+        let cancelled = false;
 
-                marker.addListener('click', () => {
-                    infoWindow.open({
-                        map,
-                        anchor: marker
-                    });
-                });
+        const setup = async () => {
+            markerLibraryRef.current = mapId ? await importMapsLibrary<google.maps.MarkerLibrary>('marker') : null;
+            if (cancelled || !containerRef.current) return;
+
+            mapRef.current = new google.maps.Map(containerRef.current, {
+                tilt: 0,
+                center: initialCoordinates,
+                zoom: initialZoom ?? 13,
+                mapTypeId: typeMaps ?? 'satellite',
+                streetViewControl: false,
+                ...(mapId ? { mapId } : {})
             });
-        }
-    }, [infos, ariaLabelCustom, iconPath, infoWindowHtml, map]);
+            setReady(true);
+        };
 
-    useEffect(() => {
-        const _map = new window.google.maps.Map(document.getElementById('map-infos')!, {
-            tilt: 0,
-            center: initialCoordinates,
-            zoom: initialZoom ? initialZoom : 13,
-            mapTypeId: typeMaps ? typeMaps : 'satellite',
-            streetViewControl: false
-        });
+        void setup();
 
-        setMap(_map);
+        return () => {
+            cancelled = true;
+            if (mapRef.current) {
+                google.maps.event.clearInstanceListeners(mapRef.current);
+                mapRef.current = null;
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const clearEntries = () => {
+        entriesRef.current.forEach(({ marker, listener, infoWindow }) => {
+            listener.remove();
+            infoWindow.close();
+            marker.remove();
+        });
+        entriesRef.current = [];
+    };
+
+    // (Re)build markers whenever the data or map changes; always clear the old
+    // markers first so nothing is orphaned.
+    useEffect(() => {
+        if (!ready || !mapRef.current) return;
+        const map = mapRef.current;
+
+        clearEntries();
+
+        infos.forEach((info) => {
+            const infoWindow = new google.maps.InfoWindow({
+                content: injectAttributes(info, infoWindowHtml, { allowHtml }),
+                ariaLabel: ariaLabelCustom ?? 'Open Sans'
+            });
+
+            const marker = createManagedMarker({
+                map,
+                position: { lat: info.lat, lng: info.lng },
+                iconPath,
+                markerLibrary: markerLibraryRef.current
+            });
+
+            const listener = marker.addClickListener(() => infoWindow.open({ map, anchor: marker.anchor }));
+
+            entriesRef.current.push({ marker, listener, infoWindow });
+        });
+
+        return () => clearEntries();
+    }, [ready, infos, iconPath, infoWindowHtml, ariaLabelCustom, allowHtml]);
+
     return (
-        <div
-            style={{
-                width: size.width,
-                height: size.height
-            }}
-        >
+        <div style={{ width: size.width, height: size.height }}>
             <div
-                id="map-infos"
+                ref={containerRef}
                 style={{
                     width: '100%',
                     height: '100%',
-                    borderRadius: radius ? radius : '8px'
+                    borderRadius: radius ?? '8px'
                 }}
-            ></div>
+            />
         </div>
     );
 };
 
-interface IInfosInMap extends IMap {
+/**
+ * Props for {@link InfosInMap}.
+ *
+ * @public
+ */
+export interface IInfosInMap extends IMap {
     apiKey: string;
+    /** Pin a specific Google Maps API version (e.g. `"3.58"` or `"quarterly"`). Defaults to the weekly channel. */
+    version?: string;
     libraries?: Libraries;
-    failed?: FunctionComponent;
+    /** Rendered while the Google Maps API is loading. Defaults to `"loading..."`. */
     loading?: FunctionComponent;
+    /** Rendered if the Google Maps API fails to load. Defaults to `"failed"`. */
+    failed?: FunctionComponent;
 }
 
+/**
+ * Renders a Google Map with one marker per entry in `infos`. Clicking a marker
+ * opens an info window whose HTML is produced by filling `infoWindowHtml`'s
+ * `$>key<$` placeholders with that entry's values (HTML-escaped by default;
+ * pass `allowHtml` to opt out).
+ *
+ * Markers are fully rebuilt whenever `infos` changes and every previous marker,
+ * listener and info window is removed first — no orphaned markers accumulate.
+ * When `mapId` is provided, `AdvancedMarkerElement` is used instead of the
+ * legacy marker.
+ *
+ * @remarks Requires a browser environment; it does not run during SSR.
+ *
+ * @example
+ * ```tsx
+ * <InfosInMap
+ *   apiKey={process.env.MAPS_KEY!}
+ *   size={{ width: '100%', height: '400px' }}
+ *   initialCoordinates={{ lat: -23.55, lng: -46.63 }}
+ *   infos={[{ lat: -23.55, lng: -46.63, name: 'HQ' }]}
+ *   infoWindowHtml={'<p>$>name<$</p>'}
+ * />
+ * ```
+ *
+ * @public
+ */
 export const InfosInMap: FC<IInfosInMap> = ({
     size,
     infos,
     radius,
     apiKey,
+    version,
+    mapId,
     iconPath,
     typeMaps,
     libraries,
+    allowHtml,
     initialZoom,
     infoWindowHtml,
     ariaLabelCustom,
@@ -123,7 +188,6 @@ export const InfosInMap: FC<IInfosInMap> = ({
         switch (status) {
             case Status.LOADING:
                 return LoadingComponent ? <LoadingComponent /> : <>loading...</>;
-
             case Status.FAILURE:
                 return FailedComponent ? <FailedComponent /> : <>failed</>;
             case Status.SUCCESS:
@@ -132,8 +196,10 @@ export const InfosInMap: FC<IInfosInMap> = ({
                         size={size}
                         infos={infos}
                         radius={radius}
+                        mapId={mapId}
                         iconPath={iconPath}
                         typeMaps={typeMaps}
+                        allowHtml={allowHtml}
                         initialZoom={initialZoom}
                         infoWindowHtml={infoWindowHtml}
                         ariaLabelCustom={ariaLabelCustom}
@@ -143,5 +209,5 @@ export const InfosInMap: FC<IInfosInMap> = ({
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={(libraries = { ...(libraries ? libraries : []) })} key={'info-in-map'}></Wrapper>;
+    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...(libraries ?? []), ...(mapId ? ['marker' as const] : [])]} {...(version ? { version } : {})} />;
 };

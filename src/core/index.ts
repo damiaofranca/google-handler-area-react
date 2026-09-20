@@ -1,0 +1,6 @@
+export { GoogleMapsError } from './errors';
+export type { GoogleMapsErrorCode } from './errors';
+export { loadGoogleMaps, importMapsLibrary, isGoogleMapsLoaded, resetGoogleMapsLoader } from './loader';
+export type { LoadGoogleMapsOptions, Library } from './loader';
+export type { ICoordinates, MapSize, MapTypeId } from './types';
+export type { ManagedMarker } from './markers';

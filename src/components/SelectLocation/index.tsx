@@ -1,110 +1,145 @@
-import React, { FC, FunctionComponent, useEffect } from 'react';
+import React, { FC, FunctionComponent, useEffect, useRef } from 'react';
 import { Status, Wrapper } from '@googlemaps/react-wrapper';
 import { Libraries } from '@googlemaps/js-api-loader';
 
+import { importMapsLibrary } from '../../core/loader';
+import { createManagedMarker, type ManagedMarker } from '../../core/markers';
+import type { ICoordinates, MapSize, MapTypeId } from '../../core/types';
+
 interface IMap {
     radius?: string;
+    mapId?: string;
     iconPath?: string;
     initialZoom?: number;
-    size: { width: string; height: string };
-    initialCoordinates: { lat: number; lng: number };
-    typeMaps?: 'roadmap' | 'satellite' | 'hybrid' | 'terrain';
-    onSetLocation: ({ lat, lng }: { lat: number; lng: number }) => void;
+    size: MapSize;
+    initialCoordinates: ICoordinates;
+    typeMaps?: MapTypeId;
+    onSetLocation: (coordinates: ICoordinates) => void;
 }
 
-const Map: React.FC<IMap> = ({
-    size,
-    radius,
-    typeMaps,
-    iconPath,
-    initialZoom,
-    initialCoordinates,
+const Map: React.FC<IMap> = ({ size, radius, mapId, typeMaps, iconPath, initialZoom, initialCoordinates, onSetLocation }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    onSetLocation
-}) => {
+    const onSetLocationRef = useRef(onSetLocation);
+    onSetLocationRef.current = onSetLocation;
+
+    const mapRef = useRef<google.maps.Map | null>(null);
+    const markerRef = useRef<ManagedMarker | null>(null);
+    const listenersRef = useRef<google.maps.MapsEventListener[]>([]);
+
     useEffect(() => {
-        const map = new window.google.maps.Map(document.getElementById('map-select')!, {
-            tilt: 0,
-            draggableCursor: 'pointer',
-            center: initialCoordinates,
-            zoom: initialZoom ? initialZoom : 13,
-            mapTypeId: typeMaps ? typeMaps : 'satellite'
-        });
+        let cancelled = false;
+        const listeners = listenersRef.current;
 
-        const marker = new google.maps.Marker({
-            map,
-            draggable: false,
-            ...(iconPath ? { icon: iconPath } : {})
-        });
+        const setup = async () => {
+            const markerLibrary = mapId ? await importMapsLibrary<google.maps.MarkerLibrary>('marker') : null;
+            if (cancelled || !containerRef.current) return;
 
-        map.addListener('click', (click: google.maps.MapMouseEvent) => {
-            onSetLocation({
-                lat: click.latLng?.lat() || 0,
-                lng: click.latLng?.lng() || 0
+            const map = new google.maps.Map(containerRef.current, {
+                tilt: 0,
+                draggableCursor: 'pointer',
+                center: initialCoordinates,
+                zoom: initialZoom ?? 13,
+                mapTypeId: typeMaps ?? 'satellite',
+                ...(mapId ? { mapId } : {})
             });
-            marker.setPosition({
-                lat: click.latLng?.lat() || 0,
-                lng: click.latLng?.lng() || 0
-            });
-        });
+            mapRef.current = map;
+
+            const marker = createManagedMarker({ map, iconPath, markerLibrary });
+            markerRef.current = marker;
+
+            listeners.push(
+                map.addListener('click', (event: google.maps.MapMouseEvent) => {
+                    if (!event.latLng) return;
+                    const position = { lat: event.latLng.lat(), lng: event.latLng.lng() };
+                    onSetLocationRef.current(position);
+                    marker.setPosition(position);
+                })
+            );
+        };
+
+        void setup();
+
+        return () => {
+            cancelled = true;
+            listeners.forEach((listener) => listener.remove());
+            listenersRef.current = [];
+            markerRef.current?.remove();
+            markerRef.current = null;
+            if (mapRef.current) {
+                google.maps.event.clearInstanceListeners(mapRef.current);
+                mapRef.current = null;
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
-        <div
-            style={{
-                width: size.width,
-                height: size.height
-            }}
-        >
+        <div style={{ width: size.width, height: size.height }}>
             <div
-                id="map-select"
+                ref={containerRef}
                 style={{
                     width: '100%',
                     height: '100%',
-                    borderRadius: radius ? radius : '8px'
+                    borderRadius: radius ?? '8px'
                 }}
-            ></div>
+            />
         </div>
     );
 };
 
-interface ISelectLocation extends Pick<IMap, 'typeMaps' | 'initialZoom' | 'onSetLocation' | 'iconPath' | 'size'> {
+/**
+ * Props for {@link SelectLocation}.
+ *
+ * @public
+ */
+export interface ISelectLocation extends Pick<IMap, 'typeMaps' | 'initialZoom' | 'onSetLocation' | 'iconPath' | 'size' | 'mapId'> {
     apiKey: string;
+    /** Pin a specific Google Maps API version (e.g. `"3.58"` or `"quarterly"`). Defaults to the weekly channel. */
+    version?: string;
     borderRadius?: string;
     libraries?: Libraries;
-    failed?: FunctionComponent;
+    initialCoordinates: ICoordinates;
+    /** Rendered while the Google Maps API is loading. Defaults to `"loading..."`. */
     loading?: FunctionComponent;
-    initialCoordinates: { lat: number; lng: number };
+    /** Rendered if the Google Maps API fails to load. Defaults to `"failed"`. */
+    failed?: FunctionComponent;
 }
 
-export const SelectLocation: FC<ISelectLocation> = ({
-    size,
-    apiKey,
-    iconPath,
-    typeMaps,
-    libraries,
-    initialZoom,
-    borderRadius,
-    initialCoordinates,
-    failed: FailedComponent,
-    loading: LoadingComponent,
-
-    onSetLocation
-}) => {
+/**
+ * Renders a Google Map on which the user picks a single location by clicking.
+ * A marker follows each click and the chosen `{ lat, lng }` is reported through
+ * {@link ISelectLocation.onSetLocation}.
+ *
+ * When `mapId` is provided the modern `AdvancedMarkerElement` is used;
+ * otherwise it falls back to the legacy marker. The map, marker and click
+ * listener are cleaned up on unmount.
+ *
+ * @remarks Requires a browser environment; it does not run during SSR.
+ *
+ * @example
+ * ```tsx
+ * <SelectLocation
+ *   apiKey={process.env.MAPS_KEY!}
+ *   size={{ width: '100%', height: '400px' }}
+ *   initialCoordinates={{ lat: -23.55, lng: -46.63 }}
+ *   onSetLocation={(coords) => console.log(coords)}
+ * />
+ * ```
+ *
+ * @public
+ */
+export const SelectLocation: FC<ISelectLocation> = ({ size, apiKey, version, mapId, iconPath, typeMaps, libraries, initialZoom, borderRadius, initialCoordinates, failed: FailedComponent, loading: LoadingComponent, onSetLocation }) => {
     const renderMap = (status: Status) => {
         switch (status) {
             case Status.LOADING:
                 return LoadingComponent ? <LoadingComponent /> : <>loading...</>;
-
             case Status.FAILURE:
                 return FailedComponent ? <FailedComponent /> : <>failed</>;
-
             case Status.SUCCESS:
-                return (
-                    <Map size={size} iconPath={iconPath} typeMaps={typeMaps} radius={borderRadius} initialZoom={initialZoom} onSetLocation={onSetLocation} initialCoordinates={initialCoordinates} />
-                );
+                return <Map size={size} mapId={mapId} iconPath={iconPath} typeMaps={typeMaps} radius={borderRadius} initialZoom={initialZoom} onSetLocation={onSetLocation} initialCoordinates={initialCoordinates} />;
         }
     };
 
-    return <Wrapper apiKey={apiKey} render={renderMap} libraries={(libraries = { ...(libraries ? libraries : []) })} key={'wrapper-create'}></Wrapper>;
+    return <Wrapper apiKey={apiKey} render={renderMap} libraries={[...(libraries ?? []), ...(mapId ? ['marker' as const] : [])]} {...(version ? { version } : {})} />;
 };

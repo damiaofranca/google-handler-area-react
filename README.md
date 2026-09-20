@@ -1,18 +1,273 @@
-# Package Google Handler Area
+# google-handler-area-react
 
-This package is intended for anyone who needs to manage data on Google Maps. It provides several useful components for interacting with Google Maps, making it easy to create, update, and select areas
-on the map.
+React components for drawing, editing and displaying areas (polygons) and points
+on Google Maps — with a **shared, deduplicated Google Maps loader**, safe
+**resource cleanup**, first-class **TypeScript** types and support for
+**multiple independent maps** on the same page.
+
+- 🧩 4 ready-to-use components: `CreateArea`, `UpdateArea`, `SelectLocation`, `InfosInMap`
+- ⚡ The Google Maps script is loaded **once**, no matter how many maps you render
+- 🧹 Every listener, marker, polygon and map is torn down on unmount (no leaks)
+- 🗺️ Multiple maps of the same type can coexist (fixed the old fixed-`id` bug)
+- 🔐 Info-window values are **HTML-escaped by default** (XSS-safe)
+- 🌱 Tree-shakable ESM build with accurate `.d.ts`
+
+---
 
 ## Installation
-
-To use this package, install it via npm:
-
-## Components
-
-The All components are:
-
-`CreateArea , UpdateArea, SelectLocation , InfosInMap`
 
 ```bash
 npm install google-handler-area-react
 ```
+
+Peer dependencies (you almost certainly already have these):
+
+```bash
+npm install react react-dom
+```
+
+The Google Maps packages (`@googlemaps/js-api-loader`,
+`@googlemaps/react-wrapper`) ship as regular dependencies and are installed
+automatically.
+
+---
+
+## Quick Start
+
+```tsx
+import { CreateArea } from 'google-handler-area-react';
+
+export function Demo() {
+    return (
+        <CreateArea
+            apiKey={import.meta.env.VITE_MAPS_KEY}
+            libraries={[]}
+            size={{ width: '100%', height: '480px' }}
+            initialCoordinates={{ lat: -23.55, lng: -46.63 }}
+            onGetMap={(coords) => console.log('area:', coords)}
+        />
+    );
+}
+```
+
+---
+
+## Components
+
+### `CreateArea`
+
+Draw a single editable polygon. Reports the vertices on every change
+(create / move / insert / remove / delete) via `onGetMap`, or `null` when cleared.
+
+| Prop | Type | Required | Description |
+| --- | --- | --- | --- |
+| `apiKey` | `string` | ✅ | Google Maps API key. |
+| `size` | `{ width: string; height: string }` | ✅ | Container dimensions. |
+| `initialCoordinates` | `{ lat: number; lng: number }` | ✅ | Map center. |
+| `onGetMap` | `(value: ICoordinates[] \| null) => void` | ✅ | Called with the polygon path (or `null`). |
+| `libraries` | `Libraries` | ✅ | Extra libraries to load (`'drawing'` is always added). |
+| `initialZoom` | `number` | – | Default `13`. |
+| `typeMaps` | `'roadmap' \| 'satellite' \| 'hybrid' \| 'terrain'` | – | Default `'satellite'`. |
+| `radius` | `string` | – | Border radius, default `'8px'`. |
+| `mapId` | `string` | – | Cloud Map ID (enables vector maps / advanced features). |
+| `version` | `string` | – | Pin a Maps API version (see [Drawing tools](#a-note-on-the-drawing-tools)). |
+| `loading` / `failed` | `FunctionComponent` | – | Custom loading / error UI. |
+
+### `UpdateArea`
+
+Same as `CreateArea` but seeded with an `existingPolygon: ICoordinates[]`
+rendered as an editable area. Delete it to draw a new one. `existingPolygon` is
+applied once, on mount.
+
+### `SelectLocation`
+
+Pick a single point by clicking the map; the chosen `{ lat, lng }` is reported
+through `onSetLocation`. Pass `iconPath` for a custom marker icon.
+
+### `InfosInMap`
+
+Render one marker per entry in `infos: IContentInfoWindow[]`. Clicking a marker
+opens an info window built from `infoWindowHtml`, whose `$>key<$` placeholders
+are filled from that entry.
+
+```tsx
+<InfosInMap
+    apiKey={KEY}
+    size={{ width: '100%', height: '400px' }}
+    initialCoordinates={{ lat: -23.55, lng: -46.63 }}
+    infos={[{ lat: -23.55, lng: -46.63, name: 'HQ', city: 'São Paulo' }]}
+    infoWindowHtml={'<h4>$>name<$</h4><p>$>city<$</p>'}
+/>
+```
+
+> **Security:** injected values are HTML-escaped by default. Pass `allowHtml`
+> only if the data is fully trusted.
+
+---
+
+## Architecture
+
+```
+src/
+├─ components/            # The 4 public React components + shared UI bits
+├─ core/
+│  ├─ loader.ts           # Shared singleton Google Maps loader (dedup)
+│  ├─ markers.ts          # AdvancedMarkerElement ↔ legacy Marker abstraction
+│  ├─ errors.ts           # GoogleMapsError + typed error codes
+│  └─ types.ts            # ICoordinates, MapSize, MapTypeId
+└─ utils/
+   └─ injectAttributes.ts # XSS-safe HTML templating for info windows
+```
+
+Each component renders `@googlemaps/react-wrapper`'s `Wrapper` for the
+load/loading/error lifecycle, then creates its `google.maps.Map` inside a React
+`ref` (never a global DOM id).
+
+### Google Maps API configuration
+
+Pass your key via the `apiKey` prop. **Never commit an unrestricted key** —
+restrict it by HTTP referrer and by API in the
+[Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+
+### Loading strategy (shared loader)
+
+The Google Maps script is a single global resource. Regardless of how many
+components you mount, it is fetched **once**. You can also drive it directly:
+
+```ts
+import { loadGoogleMaps } from 'google-handler-area-react';
+
+const a = loadGoogleMaps({ apiKey: KEY, libraries: ['drawing'] });
+const b = loadGoogleMaps({ apiKey: KEY, libraries: ['drawing'] });
+a === b; // ✅ same promise — no duplicate loads
+```
+
+Re-requesting with an **incompatible** configuration (different
+`apiKey`/`version`/`language`/`region`) throws a `GoogleMapsError`
+(`INCOMPATIBLE_OPTIONS`), because the loaded script cannot be reconfigured.
+Adding new libraries is always fine — they are imported on demand via
+`importMapsLibrary`.
+
+### Multiple maps
+
+Multiple maps — even of the same component — can be rendered simultaneously.
+Each one owns its `google.maps.Map` instance and its own container element. The
+shared loader is the only thing they have in common.
+
+### Performance
+
+- **One** script load and loader instance for the whole app.
+- Libraries imported lazily (`drawing`/`marker`) and cached by the Maps runtime.
+- No per-render object churn (map, drawing manager and markers live in refs).
+- `InfosInMap` fully replaces its markers on data change — no orphans accumulate.
+- ESM build + `sideEffects: false` for tree-shaking; React and the Google Maps
+  packages are externalized (not bundled).
+
+### Lifecycle & cleanup
+
+Every component removes **all** of its listeners, detaches its polygon/markers
+and clears the map's instance listeners on unmount. There are no known leaks.
+For advanced teardown you can call `resetGoogleMapsLoader()` (mostly for tests).
+
+### Error handling
+
+All failures are `GoogleMapsError` instances carrying a stable `code`:
+
+```ts
+import { loadGoogleMaps, GoogleMapsError } from 'google-handler-area-react';
+
+try {
+    await loadGoogleMaps({ apiKey: KEY });
+} catch (e) {
+    if (e instanceof GoogleMapsError && e.code === 'LOAD_FAILED') {
+        // retry, show a message, etc.
+    }
+}
+```
+
+Codes: `NO_WINDOW`, `MISSING_API_KEY`, `INCOMPATIBLE_OPTIONS`, `LOAD_FAILED`,
+`LIBRARY_IMPORT_FAILED`.
+
+### SSR
+
+The components require a browser (`window`). Render them only on the client
+(e.g. Next.js `dynamic(() => ..., { ssr: false })`). `loadGoogleMaps` and
+`importMapsLibrary` reject with `NO_WINDOW` when there is no `window`.
+
+---
+
+## Advanced usage
+
+### Modern markers (`AdvancedMarkerElement`)
+
+`SelectLocation` and `InfosInMap` use the deprecated `google.maps.Marker` by
+default so existing setups keep working. Provide a **`mapId`** to opt into the
+modern `AdvancedMarkerElement` automatically (the `marker` library is then
+loaded for you):
+
+```tsx
+<SelectLocation apiKey={KEY} mapId="YOUR_MAP_ID" /* ... */ />
+```
+
+### How area drawing works (no more `DrawingManager`)
+
+Google **removed the `drawing` library / `DrawingManager`** from all served Maps
+versions (v3.65+) — the old toolbar-based drawing no longer works. `CreateArea`
+and `UpdateArea` therefore draw with a **native editable polygon**: click the
+map to place vertices, drag them to edit, use the trash control to clear. The
+public props and the `onGetMap` contract are unchanged, so no code change is
+needed on your side. The `version` prop remains available for pinning the Maps
+API version for other reasons.
+
+### Info windows & CSS theming
+
+`InfosInMap`'s info window is rendered by Google **inside the map DOM** (a child
+of `<body>`), so it inherits your app's global styles. On a **dark theme**, a
+global `body { color: ... }` bleeds into the white info box — washing out the
+text and hiding the close "X" (a masked element whose glyph uses the current
+color) while it stays clickable.
+
+The library only injects your `infoWindowHtml`; the fix belongs to the consuming
+app. Either set an explicit color in the template:
+
+```tsx
+<InfosInMap infoWindowHtml={'<div style="color:#202124">$>name<$</div>'} /* ... */ />
+```
+
+or scope the info window in your global CSS:
+
+```css
+.gm-style-iw,
+.gm-style-iw-d,
+.gm-style-iw * { color: #202124; }
+.gm-style .gm-ui-hover-effect > span { background-color: #5f6368 !important; }
+```
+
+---
+
+## Public API
+
+Components: `CreateArea`, `UpdateArea`, `SelectLocation`, `InfosInMap`
+(+ their prop types `ICreateArea`, `IUpdateArea`, `ISelectLocation`, `IInfosInMap`).
+
+Core: `loadGoogleMaps`, `importMapsLibrary`, `isGoogleMapsLoaded`,
+`resetGoogleMapsLoader`, `GoogleMapsError`, and types `LoadGoogleMapsOptions`,
+`GoogleMapsErrorCode`, `Library`, `ICoordinates`, `MapSize`, `MapTypeId`,
+`ManagedMarker`.
+
+Utils: `injectAttributes` (+ `IContentInfoWindow`, `InjectAttributesOptions`).
+
+---
+
+## Migration
+
+Upgrading from `1.4.x`? See [MIGRATION.md](./MIGRATION.md). **No breaking
+changes** — it is a drop-in upgrade.
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).
+
+## License
+
+MIT © Damião França
