@@ -61,6 +61,11 @@ the public component API from `1.4.x` is fully preserved.
   now optional on components when a provider supplies it).
 - Debug/observability: `setDebug`, `isDebugEnabled`, and a `debug` prop/config
   that logs loader and lifecycle events (no-op when disabled).
+- `SelectLocation` `showSearch` (+ `searchPlaceholder`): Places address search
+  using the modern `PlaceAutocompleteElement` (Places API New) with a legacy
+  `Autocomplete` fallback; recenters the map and marker on the selection.
+- Library requests are now de-duplicated before loading (provider + props +
+  auto-added `marker`/`places`).
 - `role="button"` / `aria-label` on the delete control.
 
 ### Performance

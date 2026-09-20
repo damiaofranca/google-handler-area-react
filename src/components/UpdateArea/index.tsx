@@ -206,5 +206,5 @@ export const UpdateArea: FC<IUpdateArea> = ({
         }
     };
 
-    return <Wrapper apiKey={resolved.apiKey!} render={renderMap} libraries={[...resolved.libraries]} {...(resolved.version ? { version: resolved.version } : {})}{...(resolved.language ? { language: resolved.language } : {})}{...(resolved.region ? { region: resolved.region } : {})} />;
+    return <Wrapper apiKey={resolved.apiKey!} render={renderMap} libraries={Array.from(new Set([...resolved.libraries]))} {...(resolved.version ? { version: resolved.version } : {})}{...(resolved.language ? { language: resolved.language } : {})}{...(resolved.region ? { region: resolved.region } : {})} />;
 };

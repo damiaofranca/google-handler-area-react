@@ -224,5 +224,5 @@ export const InfosInMap: FC<IInfosInMap> = ({
         }
     };
 
-    return <Wrapper apiKey={resolved.apiKey!} render={renderMap} libraries={[...resolved.libraries, ...(resolved.mapId ? ['marker' as const] : [])]} {...(resolved.version ? { version: resolved.version } : {})}{...(resolved.language ? { language: resolved.language } : {})}{...(resolved.region ? { region: resolved.region } : {})} />;
+    return <Wrapper apiKey={resolved.apiKey!} render={renderMap} libraries={Array.from(new Set([...resolved.libraries, ...(resolved.mapId ? ['marker' as const] : [])]))} {...(resolved.version ? { version: resolved.version } : {})}{...(resolved.language ? { language: resolved.language } : {})}{...(resolved.region ? { region: resolved.region } : {})} />;
 };

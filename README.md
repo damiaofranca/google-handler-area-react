@@ -84,7 +84,10 @@ applied once, on mount.
 ### `SelectLocation`
 
 Pick a single point by clicking the map; the chosen `{ lat, lng }` is reported
-through `onSetLocation`. Pass `iconPath` for a custom marker icon.
+through `onSetLocation`. Pass `iconPath` for a custom marker icon, or `showSearch`
+to add a Places autocomplete box (modern `PlaceAutocompleteElement`, with a
+legacy fallback) that recenters the map/marker on the chosen address. `showSearch`
+requires the **Places API (New)** enabled on the key.
 
 ### `InfosInMap`
 
