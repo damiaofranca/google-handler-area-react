@@ -1,0 +1,11 @@
+export { GoogleMapsError } from './errors';
+export type { GoogleMapsErrorCode } from './errors';
+export { loadGoogleMaps, importMapsLibrary, isGoogleMapsLoaded, resetGoogleMapsLoader } from './loader';
+export type { LoadGoogleMapsOptions, Library } from './loader';
+export type { ICoordinates, MapSize, MapTypeId } from './types';
+export type { ManagedMarker } from './markers';
+export { computePolygonArea, computePolygonPerimeter, computePolygonCentroid, computeDistance, computePolygonMetrics } from './geometry';
+export type { PolygonMetrics } from './geometry';
+export { GoogleMapsProvider, useGoogleMapsConfig } from './context';
+export type { GoogleMapsConfig } from './context';
+export { setDebug, isDebugEnabled } from './debug';
